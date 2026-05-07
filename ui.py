@@ -1,3 +1,4 @@
+import os
 import tkinter as tk
 from tkinter import Menu, Tk, messagebox, simpledialog
 
@@ -11,6 +12,8 @@ from matplotlib.figure import Figure
 matplotlib.use("TkAgg")  # Set Tkinter backend
 
 import openmeteoToCsv as meteoCSV
+
+current_canvas = None
 
 
 def exitApp():
@@ -38,9 +41,19 @@ def createLoc():
     )
     if new_lat and new_long and new_name is not None:
         meteoCSV.fetchData(new_lat, new_long, new_name)
+        messagebox.showinfo(
+            title="New Location Added",
+            message="Added the new location. Go ahead and open it up!",
+        )
+    else:
+        messagebox.showerror(
+            title="Something broke",
+            message="Something went wrong adding the new location. Check your values and try again :(",
+        )
 
 
 def openLoc():
+    global current_canvas
     # Use a text box to gather user input
     town_name = simpledialog.askstring(
         title="Input Location Name Below Please:",
@@ -99,11 +112,16 @@ def openLoc():
         # Adjust layout to prevent overlap
         fig.tight_layout()
 
+        # Make sure there is no canvas overlap
+        if current_canvas is not None:
+            current_canvas.get_tk_widget().destroy()
+
         # Embed figure in Tkinter
         # We pack the widget into the root window
-        canvas = FigureCanvasTkAgg(fig, master=root)
-        canvas.draw()
-        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+        current_canvas = FigureCanvasTkAgg(fig, master=root)
+
+        current_canvas.draw()
+        current_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
 
         # Optional: Add a close button or destroy old canvas if re-opening
 
@@ -124,6 +142,24 @@ def openLoc():
         messagebox.showerror(
             title="Unexpected Error",
             message=f"Something went wrong while processing the data: {str(e)}",
+        )
+
+
+def closeLoc():
+    town_name = simpledialog.askstring(
+        title="Input Location Name Below Please:",
+        prompt="Please enter the name of the town you want to remove. This just saves storage. Make sure to spell and capitalize right!",
+    )
+    try:
+        os.remove(f"Hourly_Weather_Data_{town_name}.csv")
+        messagebox.showinfo(
+            title="Location Removed",
+            message=f"Removed {town_name}...",
+        )
+    except FileNotFoundError:
+        messagebox.showerror(
+            title="Data Error",
+            message=f"The town you're trying to remove ({town_name}) doesn't seem to exist. Try again?.",
         )
 
 
@@ -155,9 +191,9 @@ root.config(menu=menubar)
 
 # Creating File Menu
 file_menu = Menu(menubar, tearoff=0)
-file_menu.add_command(label="New Location")  # Run fn. to enter coords for new location
+file_menu.add_command(label="New Location", command=createLoc)
 file_menu.add_command(label="Open Location", command=openLoc)
-file_menu.add_command(label="Close Location")
+file_menu.add_command(label="Close Location", command=closeLoc)
 file_menu.add_separator()
 
 # Exit menu
